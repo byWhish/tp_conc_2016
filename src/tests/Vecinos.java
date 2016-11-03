@@ -20,9 +20,10 @@ public class Vecinos {
 		GameOfLifeGrid unGame = new GameOfLifeGrid();
 		unGame.resize(10,10);
 		unGame.setCell(1, 1, true);
+		unGame.setCell(0, 0, true);
 		assertEquals( unGame.getDimension() , new Dimension(10,10));
 		assertEquals( unGame.esBorde(1, 10),true);
-		//assertEquals( unGame.getVecinosVivos(0, 1), 1 ); 
+		assertEquals( unGame.getVecinosVivos(0, 1), 2 ); 
 	}
 	
 	public void testFilasColumnas(){

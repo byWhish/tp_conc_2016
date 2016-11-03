@@ -23,11 +23,11 @@ public class GameOfLifeGrid implements CellGrid{
 	{
 		int result = 0;
 		
-		for (int x = row-1; x < row+2; x++)
+		for (int x = col-1; x < col+2; x++)
 		{
-			for (int y = col-1; y < col+2; y++)
+			for (int y = row-1; y < row+2; y++)
 			{
-				if (! esBorde(x, y) && (col!=x&&row!=y) && grilla[x][y])result++;
+				if ( !esBorde(x, y) && !(col==x&&row==y) && grilla[x][y] )result++;
 			}
 		}
 		
