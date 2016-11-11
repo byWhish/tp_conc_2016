@@ -156,11 +156,13 @@ public class GameOfLifeGrid implements CellGrid{
 			do{ 
 					
 				tareas++;
-				System.out.println(tareas);
 				monitor.esperandoDato();
 			
 				if ( ! finGrilla ){
 					auxCell = nextCell;
+				}else
+				{
+					tareas--;
 				}
 				
 				monitor.consumioDato();
@@ -191,7 +193,6 @@ public class GameOfLifeGrid implements CellGrid{
 		
 		public void run(){
 			
-				int idx = 0;
 				
 				for  ( int x = 0 ; x <  maxX ; x++ ){
 					
@@ -289,6 +290,8 @@ public class GameOfLifeGrid implements CellGrid{
 	@Override
 	public void clear() {
 		// TODO Auto-generated method stub
+		generaciones = 0;
+		
 		for ( int x = 0; x < grilla.length ; x++ )
 		{
 			for ( int y = 0; y < grilla[0].length ; y++ )
@@ -340,6 +343,7 @@ public class GameOfLifeGrid implements CellGrid{
 		
 		m.updateGeneracion();
 		grilla = tmpGrilla;	
+		generaciones++;
 		
 	}
 
