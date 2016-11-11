@@ -6,19 +6,218 @@ import java.util.List;
 
 import edu.unq.pconc.gameoflife.CellGrid;
 
+
 public class GameOfLifeGrid implements CellGrid{
 	//width = col
 	//hegiht = row
-	boolean[][] grilla;
-	int generaciones;
 	
-	public Integer unaVariable = 2;
+	private static boolean[][] grilla;
+	private static boolean[][] tmpGrilla;
+	private static List<Boolean> aliveCells = new ArrayList<Boolean>();
+	private static List<Boolean> deadCells = new ArrayList<Boolean>();
+	private int generaciones = 0;
+	private int threads;
+	private static int tareando;
+	private static Tuple nextCell;
+	private static boolean finGrilla;
+	private static boolean hayDato;
+	
+	public class Monitor{		
+		
+		private boolean puedeUpdate;
+		
+		public synchronized void finGrilla(){
+			finGrilla = true;
+			this.notifyAll();
+		}
+		
+		private void iniciarGeneracion(){
+			puedeUpdate = false;
+		}
+		
+		private synchronized void datoGenerado(){
+			hayDato = true;
+			this.notifyAll();
+		}
+		
+		public synchronized void consumioDato(){
+			hayDato = false;
+			this.notifyAll();
+		}
+		
+		public synchronized void esperandoDato(){
+			while ( ! hayDato && ! finGrilla ){
+			try{
+				this.wait();
+				} 
+				catch( InterruptedException ex ){
+				return;
+				}
+			}
+		}
+		
+		public synchronized void esperandoProducir()
+		{
+			while ( hayDato ){
+				try {
+					this.wait();
+					}
+					catch(InterruptedException ex){
+					return;
+					}	
+			}
+		}
+		
+		public synchronized void inicioTarea(){
+			tareando++;
+		}
+		
+		public synchronized void finTarea(){
+			tareando--;
+			
+			if ( tareando == 0 ){
+				puedeUpdate = true;
+				this.notifyAll();
+			}
+		}
+
+		public synchronized void updateGeneracion() {
+			// 
+			while ( ! puedeUpdate ){
+				try{
+					this.wait();
+					} 
+					catch( InterruptedException ex ){
+					return;
+					}
+			}
+		}
+		
+	}
+	
+	public class Consumer extends Thread{
+	
+		private Monitor monitor;
+		
+		public Consumer( Monitor monitor ){
+			this.monitor = monitor;
+		}
+		
+		public int getVecinosVivos( int col, int row )
+		{
+			int result = 0;
+			
+			for (int x = col-1; x < col+2; x++)
+			{
+				for (int y = row-1; y < row+2; y++)
+				{
+					if ( !esBorde(x, y) && !(col==x&&row==y) && grilla[x][y] )result++;
+				}
+			}
+			
+			return result;
+		}
+		
+		
+		public boolean evalAliveCell(Integer vecinosVivos){
+			
+			if ( vecinosVivos < 4 )
+			{
+				return (vecinosVivos > 1);
+			}
+		else
+			{
+				return false;
+			}
+			
+		}
+		
+		public boolean evalCell( int col, int row )
+		{
+			int vecinosVivos = getVecinosVivos(col, row);
+			if (grilla[col][row])
+			{
+				return this.evalAliveCell(vecinosVivos);
+			}
+			else 
+			{
+				return vecinosVivos == 3;
+			}
+		}
+		
+		public void run(){
+			
+			monitor.inicioTarea();
+			
+			int tareas = 0;
+			
+			Tuple auxCell = new Tuple( 0, 0 );
+			
+			do{ 
+					
+				tareas++;
+				System.out.println(tareas);
+				monitor.esperandoDato();
+			
+				if ( ! finGrilla ){
+					auxCell = nextCell;
+				}
+				
+				monitor.consumioDato();
+				
+				tmpGrilla[auxCell.left][auxCell.right] = evalCell(auxCell.left,auxCell.right);
+		
+			} while ( ! finGrilla );
+			
+			monitor.finTarea();
+			 
+		}
+
+		
+	}
+	
+	public class Producer extends Thread{
+		
+		Monitor monitor;
+		
+		private int maxX;
+		private int maxY;
+		
+		public Producer( Monitor monitor, Dimension d ){
+			this.monitor = monitor;
+			this.maxX = (int)d.getWidth();
+			this.maxY = (int)d.getHeight();
+		}
+		
+		public void run(){
+			
+				int idx = 0;
+				
+				for  ( int x = 0 ; x <  maxX ; x++ ){
+					
+					for ( int y = 0 ; y < maxY ; y++ ){
+						
+							monitor.esperandoProducir();
+		
+							nextCell = new Tuple(x,y);
+						
+							monitor.datoGenerado();
+						
+					}
+				}
+				
+				monitor.finGrilla();
+				
+			}
+		}
+
 	
 	
 	public boolean esBorde(int col, int row)
 	{
 		return col < 0 || row < 0 || row > this.getDimension().height-1 || col > this.getDimension().width-1;  
 	}
+	
 	public int getVecinosVivos( int col, int row )
 	{
 		int result = 0;
@@ -34,25 +233,32 @@ public class GameOfLifeGrid implements CellGrid{
 		return result;
 	}
 	
-	public boolean realizarTarea(Integer vecinosVivos){
-		if(vecinosVivos < 2){
-			return false;
-		}
-		else {
-			   return (vecinosVivos < 4) || false;
-		     }
+	
+	public boolean evalAliveCell(Integer vecinosVivos){
+		
+		if ( vecinosVivos < 4 )
+			{
+				return (vecinosVivos > 1);
+			}
+		else
+			{
+				return false;
+			}
+		
 	}
 	
 
 	public boolean evalCell( int col, int row )
 	{
-		Integer vecinosVivos= this.getVecinosVivos(col, row);
-		if (grilla[col][row]){
-			return this.realizarTarea(vecinosVivos);
+		int vecinosVivos = getVecinosVivos(col, row);
+		if (grilla[col][row])
+		{
+			return this.evalAliveCell(vecinosVivos);
 		}
-		else {
-			  return vecinosVivos == 3;
-		     }
+		else 
+		{
+			return vecinosVivos == 3;
+		}
 	}
 	
 	@Override
@@ -62,6 +268,9 @@ public class GameOfLifeGrid implements CellGrid{
 
 	@Override
 	public void setCell(int col, int row, boolean cell) {
+		if (cell) {aliveCells.add(cell);} 
+		else {deadCells.add(cell);}
+		
 		grilla[col][row] = cell;
 	}
 
@@ -80,9 +289,9 @@ public class GameOfLifeGrid implements CellGrid{
 	@Override
 	public void clear() {
 		// TODO Auto-generated method stub
-		for ( int x = 0; x < grilla.length-1 ; x++ )
+		for ( int x = 0; x < grilla.length ; x++ )
 		{
-			for ( int y = 0; y < grilla[0].length-1 ; y++ )
+			for ( int y = 0; y < grilla[0].length ; y++ )
 			{
 				this.setCell(x, y, false);
 			}
@@ -90,9 +299,10 @@ public class GameOfLifeGrid implements CellGrid{
 		
 	}
 
+	
 	@Override
 	public void setThreads(int threads) {
-		// TODO Auto-generated method stub	
+		this.threads = threads;
 	}
 
 	@Override
@@ -100,20 +310,37 @@ public class GameOfLifeGrid implements CellGrid{
 		// TODO Auto-generated method stub
 		return generaciones;
 	}
+	
+		
 
 	@Override
 	public void next() {
 		
-		boolean[][] auxGrilla = new boolean[(int)this.getDimension().getWidth()][(int)this.getDimension().getHeight()];
+		tareando = 0;
 		
-		for ( int x = 0; x < (int)this.getDimension().getWidth()-1 ; x++ )
+		tmpGrilla = new boolean[(int)this.getDimension().getWidth()][(int)this.getDimension().getHeight()];
+		
+		finGrilla = false;
+		
+		hayDato = false;
+		
+		Monitor m = new Monitor();
+		
+		m.iniciarGeneracion();
+		
+		Producer p = new Producer( m , this.getDimension() );
+		
+		p.start();
+		
+		for ( int idx = 0; idx < this.threads; idx++)
 		{
-			for ( int y = 0; y < (int)this.getDimension().getHeight()-1 ; y ++ )
-			{
-				auxGrilla[x][y] = this.evalCell(x, y);
-			}
-		}
-		grilla = auxGrilla;
+			Consumer c = new Consumer( m );
+			c.start();
+		}		
+		
+		m.updateGeneracion();
+		grilla = tmpGrilla;	
+		
 	}
 
 }

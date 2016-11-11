@@ -8,8 +8,9 @@ import org.junit.Before;
 import org.junit.Test;
 
 import edu.unq.pconc.gameoflife.solution.GameOfLifeGrid;
+import junit.framework.TestCase;
 
-public class Vecinos {
+public class Vecinos extends TestCase{
 
 	@Before
 	public void setUp() throws Exception {
