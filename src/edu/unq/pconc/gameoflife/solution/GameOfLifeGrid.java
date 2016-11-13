@@ -10,21 +10,32 @@ import edu.unq.pconc.gameoflife.CellGrid;
 public class GameOfLifeGrid implements CellGrid{
 	//width = col
 	//hegiht = row
+	//Dimension width height
+	//Dimension(grilla.length,grilla[0].length);
 	
 	private static boolean[][] grilla;
 	private static boolean[][] tmpGrilla;
-	private static List<Boolean> aliveCells = new ArrayList<Boolean>();
-	private static List<Boolean> deadCells = new ArrayList<Boolean>();
 	private int generaciones = 0;
 	private int threads;
-	private static int tareando;
-	private static Tuple nextCell;
-	private static boolean finGrilla;
-	private static boolean hayDato;
+	private static int nextCol;
 	
 	public class Monitor{		
 		
+		private boolean hayDato;
+		private int tareando;
 		private boolean puedeUpdate;
+		private boolean finGrilla;
+		
+		public Monitor(){
+			tareando = 0;
+			hayDato = false;
+			puedeUpdate = false;
+			finGrilla = false;
+		}
+		
+		public boolean getFinGrilla(){
+			return finGrilla;
+		}
 		
 		public synchronized void finGrilla(){
 			finGrilla = true;
@@ -46,7 +57,7 @@ public class GameOfLifeGrid implements CellGrid{
 		}
 		
 		public synchronized void esperandoDato(){
-			while ( ! hayDato && ! finGrilla ){
+			while ( ! hayDato && ! finGrilla ){	
 			try{
 				this.wait();
 				} 
@@ -57,7 +68,7 @@ public class GameOfLifeGrid implements CellGrid{
 		}
 		
 		public synchronized void esperandoProducir()
-		{
+		{   
 			while ( hayDato ){
 				try {
 					this.wait();
@@ -91,6 +102,7 @@ public class GameOfLifeGrid implements CellGrid{
 					return;
 					}
 			}
+			this.notifyAll();
 		}
 		
 	}
@@ -150,29 +162,41 @@ public class GameOfLifeGrid implements CellGrid{
 			monitor.inicioTarea();
 			
 			int tareas = 0;
-			
-			Tuple auxCell = new Tuple( 0, 0 );
+			//Tuple auxCell = new Tuple( 0, 0 );
+			int auxCol = 0;
 			
 			do{ 
 					
 				tareas++;
+				
 				monitor.esperandoDato();
 			
-				if ( ! finGrilla ){
-					auxCell = nextCell;
+				//if ( ! finGrilla ){
+					//auxCell = nextCell;
+					auxCol = nextCol;
+				//}else
+				//{
+					//tareas--;
+				//}
+				
+				monitor.consumioDato();
+				
+				//tmpGrilla[auxCell.left][auxCell.right] = evalCell(auxCell.left,auxCell.right);
+				
+				if ( ! monitor.getFinGrilla() ){
+				
+				for ( int y = 0 ; y < tmpGrilla[auxCol].length ; y++ ){
+					tmpGrilla[auxCol][y] = evalCell(auxCol,y);
+				}
 				}else
 				{
 					tareas--;
 				}
-				
-				monitor.consumioDato();
-				
-				tmpGrilla[auxCell.left][auxCell.right] = evalCell(auxCell.left,auxCell.right);
 		
-			} while ( ! finGrilla );
+			} while ( ! monitor.getFinGrilla() );
 			
-			monitor.finTarea();
-			 
+			monitor.finTarea();		
+			
 		}
 
 		
@@ -196,15 +220,16 @@ public class GameOfLifeGrid implements CellGrid{
 				
 				for  ( int x = 0 ; x <  maxX ; x++ ){
 					
-					for ( int y = 0 ; y < maxY ; y++ ){
+					//for ( int y = 0 ; y < maxY ; y++ ){
 						
 							monitor.esperandoProducir();
 		
-							nextCell = new Tuple(x,y);
-						
+							//nextCell = new Tuple(x,y);
+							nextCol = x;
+							
 							monitor.datoGenerado();
 						
-					}
+					//}
 				}
 				
 				monitor.finGrilla();
@@ -269,8 +294,6 @@ public class GameOfLifeGrid implements CellGrid{
 
 	@Override
 	public void setCell(int col, int row, boolean cell) {
-		if (cell) {aliveCells.add(cell);} 
-		else {deadCells.add(cell);}
 		
 		grilla[col][row] = cell;
 	}
@@ -319,13 +342,8 @@ public class GameOfLifeGrid implements CellGrid{
 	@Override
 	public void next() {
 		
-		tareando = 0;
-		
 		tmpGrilla = new boolean[(int)this.getDimension().getWidth()][(int)this.getDimension().getHeight()];
 		
-		finGrilla = false;
-		
-		hayDato = false;
 		
 		Monitor m = new Monitor();
 		
@@ -348,3 +366,7 @@ public class GameOfLifeGrid implements CellGrid{
 	}
 
 }
+
+
+
+
